@@ -1,0 +1,117 @@
+#import numpy as np
+import matplotlib.pyplot as plt
+import ipywidgets as widgets
+from IPython.display import display, clear_output, HTML
+import random
+import time
+import json
+import os
+
+class SortingGame:
+    def __init__(self):
+        self.difficulty_levels = {
+            'Легкий': {'n': 6, 'error_prob': 0.2, 'time_limit': 10},
+            'Средний': {'n': 8, 'error_prob': 0.3, 'time_limit': 7},
+            'Сложный': {'n': 10, 'error_prob': 0.4, 'time_limit': 5}
+        }
+        self.current_array = []
+        self.has_error = False
+        self.score = 0
+        self.time_left = 0
+        self.game_active = False
+        self.stats_file = 'sorting_game_stats.json'
+        self.stats = self.load_stats()
+        self.setup_ui()
+
+    def load_stats(self):
+        try:
+            if os.path.exists(self.stats_file):
+                with open(self.stats_file, 'r') as f:
+                    return json.load(f)
+        except:
+            pass
+        return {
+            'total_games': 0,
+            'found_errors': 0,
+            'wrong_reports': 0,
+            'best_scores': {'Легкий': 0, 'Средний': 0, 'Сложный': 0}
+        }
+
+    def save_stats(self):
+        try:
+            with open(self.stats_file, 'w') as f:
+                json.dump(self.stats, f)
+        except:
+            print("Не удалось сохранить статистику.")
+
+    def generate_array(self, n, error_prob):
+        arr = sorted([random.randint(1, 100) for _ in range(n)])
+        if random.random() < error_prob:
+            idx = random.randint(0, n-2)
+            arr[idx], arr[idx+1] = arr[idx+1], arr[idx]  # Создаем ошибку
+            self.has_error = True
+        else:
+            self.has_error = False
+        return arr
+
+    def start_game(self, difficulty):
+        self.game_active = True
+        self.score = 0
+        self.time_left = self.difficulty_levels[difficulty]['time_limit']
+        self.current_array = self.generate_array(
+            self.difficulty_levels[difficulty]['n'],
+            self.difficulty_levels[difficulty]['error_prob']
+        )
+        self.update_display()
+
+    def check_answer(self, user_choice):
+        if not self.game_active:
+            return
+
+        correct = (user_choice == self.has_error)
+        if correct:
+            self.score += 1
+            if self.has_error:
+                self.stats['found_errors'] += 1
+        else:
+            if not self.has_error:
+                self.stats['wrong_reports'] += 1
+
+        self.current_array = self.generate_array(
+            len(self.current_array),
+            self.difficulty_levels['Легкий']['error_prob']  # Можно адаптировать
+        )
+        self.update_display()
+
+    def update_display(self):
+        clear_output(wait=True)
+        display(HTML("<h1>Игра: Поиск ошибок в сортировке</h1>"))
+
+        if not self.game_active:
+            display(HTML("<p>Выберите сложность:</p>"))
+            buttons = [
+                widgets.Button(description=level)
+                for level in self.difficulty_levels
+            ]
+            for button in buttons:
+                button.on_click(lambda b: self.start_game(b.description))
+                display(button)
+            return
+
+        display(HTML(f"<p>Осталось времени: {self.time_left} сек</p>"))
+        display(HTML(f"<p>Счет: {self.score}</p>"))
+        display(HTML(f"<pre>{self.current_array}</pre>"))
+
+        btn_error = widgets.Button(description="Есть ошибка")
+        btn_no_error = widgets.Button(description="Нет ошибки")
+        btn_error.on_click(lambda b: self.check_answer(True))
+        btn_no_error.on_click(lambda b: self.check_answer(False))
+        display(widgets.HBox([btn_error, btn_no_error]))
+
+    def setup_ui(self):
+        self.update_display()
+
+# Запуск игры
+game = SortingGame() This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
